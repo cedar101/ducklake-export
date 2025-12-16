@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS ducklake.{{ table_name }};
+
+CREATE EXTERNAL TABLE IF NOT EXISTS ducklake.{{ table_name }} (
+    {% for column in columns -%}
+    {{ column.column_name }} {{ column.column_type }} COMMENT '{{ column.column_comment }}'{% if not loop.last %},
+    {% endif %}
+    {%- endfor %}
+)
+COMMENT '{{ table_comment }}'
+PARTITIONED BY (`year` int, `month` int, `day` int)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+STORED AS PARQUET
+LOCATION '{{ data_path }}{{ schema_name }}/{{ table_name }}';
+
+MSCK REPAIR TABLE ducklake.{{ table_name }};
