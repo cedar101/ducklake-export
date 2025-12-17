@@ -13,3 +13,8 @@ dependencies = [
     "psycopg[binary]>=3.3.2",
     "python-dotenv>=1.2.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ptpython>=3.0.32",
+]
