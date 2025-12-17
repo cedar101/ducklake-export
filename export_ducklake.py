@@ -3,15 +3,18 @@ from typing import NewType, Any
 from collections.abc import Generator
 from contextlib import AbstractContextManager
 import functools
+import os
 
 import fire
 import aiosql
 import psycopg
 from psycopg.rows import dict_row
 from jinja2 import Environment, FileSystemLoader
+from dotenv import load_dotenv
 
+load_dotenv()
 
-CONNECTION_STRING = "dbname=ducklake_catalog user=postgres password=qordlf00## host=home-dev-dp-catalog-db.cluster-cfmqwcmkqm5j.ap-northeast-2.rds.amazonaws.com port=5432"
+CONNECTION_STRING = os.environ["CONNECTION_STRING"]
 
 Connection = NewType("Connection", AbstractContextManager)
 
