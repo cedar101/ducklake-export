@@ -60,3 +60,25 @@ WHERE
     AND c.parent_column IS NULL
     AND :snapshot_id >= c.begin_snapshot AND (:snapshot_id < c.end_snapshot OR c.end_snapshot IS NULL)
 ORDER BY c.column_order;
+
+-- name: create-table-ducklake-table-athena-ddl#
+CREATE TABLE IF NOT EXISTS ducklake_table_athena_ddl
+(
+    id       integer GENERATED ALWAYS AS IDENTITY
+        CONSTRAINT ducklake_table_athena_ddl_pk
+            PRIMARY KEY,
+    table_id bigint UNIQUE,
+    ddl      TEXT
+);
+
+COMMENT ON TABLE ducklake_table_athena_ddl IS 'AWS Athena 테이블 등록 DDL SQL';
+
+ALTER TABLE ducklake_table_athena_ddl
+    OWNER TO postgres;
+
+
+-- name: save-athena-ddl(table_id, ddl)!
+INSERT INTO ducklake_table_athena_ddl (table_id, ddl)
+VALUES (:table_id, :ddl)
+ON CONFLICT(table_id)
+DO UPDATE SET ddl = EXCLUDED.ddl;

@@ -97,7 +97,7 @@ class DucklakeCatalog:
             column["column_type"] = ducklake_to_hive_data_type(column["column_type"])
             yield column
 
-    def export_table(self, table_name: str) -> str:
+    def export_table(self, table_name: str, dry_run: bool = False) -> str:
         env = Environment(loader=FileSystemLoader("template/"))
         template = env.get_template("athena_table_template.sql.j2")
 
@@ -118,6 +118,9 @@ class DucklakeCatalog:
                 ),
             }
         )
+
+        self._queries.save_athena_ddl(self._conn, table_id=table_id, ddl=ddl_sql)
+
         return ddl_sql
 
 

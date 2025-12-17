@@ -2,11 +2,11 @@ DROP TABLE IF EXISTS ducklake.{{ table_name }};
 
 CREATE EXTERNAL TABLE IF NOT EXISTS ducklake.{{ table_name }} (
     {% for column in columns -%}
-    {{ column.column_name }} {{ column.column_type }} COMMENT '{{ column.column_comment }}'{% if not loop.last %},
+    {{ column.column_name }} {{ column.column_type }} COMMENT '{{ column.column_comment | default('' , true) }}'{% if not loop.last %},
     {% endif %}
     {%- endfor %}
 )
-COMMENT '{{ table_comment }}'
+COMMENT '{{ table_comment | default('', true) }}'
 PARTITIONED BY (`year` int, `month` int, `day` int)
 ROW FORMAT SERDE 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
 STORED AS PARQUET
