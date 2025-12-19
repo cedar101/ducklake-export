@@ -1,21 +1,19 @@
 # from contextlib import closing
-from typing import NewType, Any
+from typing import NewType, Any, Annotated
 from collections.abc import Generator
 from contextlib import AbstractContextManager
 import functools
-import os
+import re
 
 import fire
 import aiosql
 import psycopg
 from psycopg.rows import dict_row
+import pyathena
 from jinja2 import Environment, FileSystemLoader
-from dotenv import load_dotenv
+from pydantic import AnyUrl, UrlConstraints, PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
-
-CONNECTION_STRING = os.environ["CONNECTION_STRING"]
-DATA_PATH = os.environ["DATA_PATH"]
 
 DUCKLAKE_TO_HIVE_DATA_TYPE = {
     "boolean": "BOOLEAN",  # True or false
@@ -50,6 +48,17 @@ DUCKLAKE_TO_HIVE_DATA_TYPE = {
 
 Connection = NewType("Connection", AbstractContextManager)
 
+S3Url = Annotated[AnyUrl, UrlConstraints(allowed_schemes=["s3"], host_required=True)]
+
+
+class Settings(BaseSettings):
+    connection_string: PostgresDsn
+    data_path: S3Url
+    staging_dir: S3Url
+    region: str
+
+    model_config = SettingsConfigDict(env_file=".env")
+
 
 def ducklake_to_hive_data_type(typename: str) -> str | None:
     try:
@@ -71,9 +80,12 @@ class ParamAliases:
 class DucklakeCatalog:
     """Execute query and export table in Ducklake catalog DB."""
 
-    def __init__(self, queries: aiosql.queries, conn: Connection) -> None:
+    def __init__(
+        self, queries: aiosql.queries, conn: Connection, settings: Settings
+    ) -> None:
         self._queries = queries
         self._conn = conn
+        self._settings = settings
 
         # Dynamically adding query functions.
         for query in self._queries.available_queries:
@@ -110,7 +122,7 @@ class DucklakeCatalog:
         )
         ddl_sql = template.render(
             {
-                "data_path": DATA_PATH,
+                "data_path": self._settings.data_path,
                 "schema_name": "main",
                 "table_name": table_name,
                 "table_comment": self._queries.get_table_comment(
@@ -125,14 +137,25 @@ class DucklakeCatalog:
         if save_ddl:
             self._queries.save_athena_ddl(self._conn, table_id=table_id, ddl=ddl_sql)
 
+        if not dry_run:
+            with pyathena.connect(
+                s3_staging_dir=str(self._settings.staging_dir),
+                region_name=self._settings.region,
+            ) as conn:
+                cursor = conn.cursor()
+                for statement in re.split(r";\s*\n", ddl_sql):
+                    print(statement)
+                    cursor.execute(statement)
+
         return ddl_sql
 
 
 def main():
+    settings = Settings()
     queries = aiosql.from_path("sql/", "psycopg")
 
-    with psycopg.connect(CONNECTION_STRING, row_factory=dict_row) as conn:
-        ducklake_catalog = DucklakeCatalog(queries, conn)
+    with psycopg.connect(str(settings.connection_string), row_factory=dict_row) as conn:
+        ducklake_catalog = DucklakeCatalog(queries, conn, settings)
         fire.Fire(ducklake_catalog)
 
 
