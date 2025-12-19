@@ -15,8 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CONNECTION_STRING = os.environ["CONNECTION_STRING"]
-
-Connection = NewType("Connection", AbstractContextManager)
+DATA_PATH = os.environ["DATA_PATH"]
 
 DUCKLAKE_TO_HIVE_DATA_TYPE = {
     "boolean": "BOOLEAN",  # True or false
@@ -48,6 +47,8 @@ DUCKLAKE_TO_HIVE_DATA_TYPE = {
     "struct": "STRUCT",  # TODO:	A tuple of typed values
     "map": "MAP",  # TODO: A collection of key-value pairs
 }
+
+Connection = NewType("Connection", AbstractContextManager)
 
 
 def ducklake_to_hive_data_type(typename: str) -> str | None:
@@ -97,7 +98,9 @@ class DucklakeCatalog:
             column["column_type"] = ducklake_to_hive_data_type(column["column_type"])
             yield column
 
-    def export_table(self, table_name: str, dry_run: bool = False) -> str:
+    def export_table(
+        self, table_name: str, dry_run: bool = False, save_ddl: bool = True
+    ) -> str:
         env = Environment(loader=FileSystemLoader("template/"))
         template = env.get_template("athena_table_template.sql.j2")
 
@@ -107,7 +110,7 @@ class DucklakeCatalog:
         )
         ddl_sql = template.render(
             {
-                "data_path": "s3://home-an2-dev-dp-drs-tables/",
+                "data_path": DATA_PATH,
                 "schema_name": "main",
                 "table_name": table_name,
                 "table_comment": self._queries.get_table_comment(
@@ -119,7 +122,8 @@ class DucklakeCatalog:
             }
         )
 
-        self._queries.save_athena_ddl(self._conn, table_id=table_id, ddl=ddl_sql)
+        if save_ddl:
+            self._queries.save_athena_ddl(self._conn, table_id=table_id, ddl=ddl_sql)
 
         return ddl_sql
 
