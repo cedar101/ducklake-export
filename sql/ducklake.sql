@@ -62,12 +62,13 @@ WHERE
 ORDER BY c.column_order;
 
 -- name: create-table-ducklake-table-athena-ddl#
-CREATE TABLE IF NOT EXISTS ducklake_table_athena_ddl
+CREATE TABLE public.ducklake_table_athena_ddl
 (
-    id       integer GENERATED ALWAYS AS IDENTITY
+    id       INTEGER GENERATED ALWAYS AS IDENTITY
         CONSTRAINT ducklake_table_athena_ddl_pk
             PRIMARY KEY,
-    table_id bigint UNIQUE,
+    table_id BIGINT NOT NULL
+        unique,
     ddl      TEXT
 );
 

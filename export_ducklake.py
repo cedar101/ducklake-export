@@ -120,6 +120,9 @@ class DucklakeCatalog:
         table_id = self._queries.get_table_id(
             self._conn, snapshot_id=snapshot_id, table_name=table_name
         )
+        columns = self.table_schema_to_export(
+            snapshot_id=snapshot_id, table_id=table_id
+        )
         ddl_sql = template.render(
             {
                 "data_path": self._settings.data_path,
@@ -128,9 +131,7 @@ class DucklakeCatalog:
                 "table_comment": self._queries.get_table_comment(
                     self._conn, table_id=table_id
                 ),
-                "columns": self.table_schema_to_export(
-                    snapshot_id=snapshot_id, table_id=table_id
-                ),
+                "columns": columns,
             }
         )
 
@@ -144,7 +145,6 @@ class DucklakeCatalog:
             ) as conn:
                 cursor = conn.cursor()
                 for statement in re.split(r";\s*\n", ddl_sql):
-                    print(statement)
                     cursor.execute(statement)
 
         return ddl_sql
